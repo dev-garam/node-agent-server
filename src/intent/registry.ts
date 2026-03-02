@@ -2,13 +2,9 @@ import type { Feature } from "./feature.js";
 
 export class FeatureRegistry {
   private readonly instances = new Map<string, Feature>();
-  private readonly legacyInstances = new Map<string, Feature>();
 
   register(feature: Feature): Feature {
     this.instances.set(feature.id, feature);
-    if (feature.legacyId) {
-      this.legacyInstances.set(feature.legacyId, feature);
-    }
     return feature;
   }
 
@@ -18,10 +14,6 @@ export class FeatureRegistry {
 
   getById(id: string): Feature | undefined {
     return this.instances.get(id);
-  }
-
-  resolve(idOrLegacyId: string): Feature | undefined {
-    return this.instances.get(idOrLegacyId) ?? this.legacyInstances.get(idOrLegacyId);
   }
 
   listFeatures(): string[] {
