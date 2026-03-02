@@ -218,7 +218,6 @@ export const buildApp = async () => {
                     type: "object",
                     properties: {
                       id: { type: "string" },
-                      legacyId: { type: ["string", "null"] },
                       title: { type: "string" }
                     }
                   },
@@ -275,28 +274,23 @@ export const buildApp = async () => {
           state: parsed.data.state
         });
 
-        const matchedFeature = registry.resolve(result.parsed.featureId);
-        const canonicalFeatureId = matchedFeature?.id ?? result.parsed.featureId;
+        const matchedFeature = registry.getById(result.parsed.featureId);
         const elapsedMs = Date.now() - startAt;
         request.log.info(
           {
             model: parsed.data.model,
-            featureId: canonicalFeatureId,
+            featureId: result.parsed.featureId,
             elapsedMs
           },
           "intent.api.response"
         );
 
         return {
-          parsed: {
-            ...result.parsed,
-            featureId: canonicalFeatureId
-          },
+          parsed: result.parsed,
           rawResponse: result.rawResponse,
           matchedFeature: matchedFeature
             ? {
                 id: matchedFeature.id,
-                legacyId: matchedFeature.legacyId ?? null,
                 title: matchedFeature.title
               }
             : null
