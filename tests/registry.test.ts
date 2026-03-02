@@ -7,7 +7,8 @@ describe("FeatureRegistry", () => {
     const registry = new FeatureRegistry();
     defaultFeatures.forEach((feature) => registry.register(feature));
 
-    expect(registry.getById("3_a")?.title).toContain("location");
+    expect(registry.getById("place.search.nearby")?.title).toContain("location");
+    expect(registry.resolve("3_a")?.id).toBe("place.search.nearby");
     expect(registry.listFeatures().length).toBe(4);
   });
 });

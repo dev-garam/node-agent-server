@@ -5,12 +5,21 @@ import type { FeatureRegistry } from "./registry.js";
 import { AVAILABLE_FEATURES_PROMPT, BASE_PROMPT, MAIN_PROMPT } from "./staticPrompts.js";
 
 export class PromptMaker {
-  constructor(private readonly registry: FeatureRegistry) {}
+  private readonly basePromptPrefix: string;
+  private readonly cachedPrompt: string;
+
+  constructor(private readonly registry: FeatureRegistry) {
+    const baseFeaturesPrompt = this.registry.getAll().map(featurePrompt).join("");
+    this.basePromptPrefix = `${BASE_PROMPT}${AVAILABLE_FEATURES_PROMPT}${baseFeaturesPrompt}`;
+    this.cachedPrompt = `${this.basePromptPrefix}${MAIN_PROMPT}`;
+  }
 
   getIntentDetectionPrompt(additionalFeatures: Feature[] = []): string {
-    const features = [...this.registry.getAll(), ...additionalFeatures];
-    const details = features.map(featurePrompt).join("");
-    return `${BASE_PROMPT}${AVAILABLE_FEATURES_PROMPT}${details}${MAIN_PROMPT}`;
+    if (additionalFeatures.length === 0) {
+      return this.cachedPrompt;
+    }
+    const additionalPrompt = additionalFeatures.map(featurePrompt).join("");
+    return `${this.basePromptPrefix}${additionalPrompt}${MAIN_PROMPT}`;
   }
 }
 

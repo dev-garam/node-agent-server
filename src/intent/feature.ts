@@ -22,6 +22,7 @@ export interface AvailableOption {
 
 export interface Feature {
   id: string;
+  legacyId?: string;
   title: string;
   description: string;
   detectionNote: string;
