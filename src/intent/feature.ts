@@ -22,6 +22,7 @@ export interface AvailableOption {
 
 export interface Feature {
   id: string;
+  legacyId?: string;
   title: string;
   description: string;
   detectionNote: string;
@@ -31,6 +32,9 @@ export interface Feature {
 
 export const featurePrompt = (feature: Feature): string => {
   let prompt = `\n**${feature.title}**\n   - Feature ID: ${feature.id}\n   - Feature Criteria: ${feature.detectionNote}\n`;
+  if (feature.legacyId) {
+    prompt += `   - Legacy Feature ID: ${feature.legacyId}\n`;
+  }
 
   if (feature.requiredParameters.length > 0) {
     prompt += "   - Required Parameters:\n";

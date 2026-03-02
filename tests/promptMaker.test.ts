@@ -10,8 +10,9 @@ describe("prompt maker", () => {
 
     const prompt = new PromptMaker(registry).getIntentDetectionPrompt();
 
-    expect(prompt).toContain("Feature ID: 1_a");
-    expect(prompt).toContain("Feature ID: 2_a");
+    expect(prompt).toContain("Feature ID: mem.save");
+    expect(prompt).toContain("Feature ID: weather.lookup");
+    expect(prompt).toContain("Legacy Feature ID: 1_a");
     expect(prompt).toContain("Feature ID: 0");
   });
 

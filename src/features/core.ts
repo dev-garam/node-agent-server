@@ -1,7 +1,8 @@
 import type { Feature } from "../intent/feature.js";
 
 export const saveUserMemoryFeature: Feature = {
-  id: "1_a",
+  id: "mem.save",
+  legacyId: "1_a",
   title: "Save a new memo on user's memory",
   description: "Stores user-provided information to memory for future conversation.",
   detectionNote:
@@ -25,7 +26,8 @@ export const saveUserMemoryFeature: Feature = {
 };
 
 export const searchWeatherFeature: Feature = {
-  id: "2_a",
+  id: "weather.lookup",
+  legacyId: "2_a",
   title: "Provide weather information",
   description: "Returns weather info for a current or specific location.",
   detectionNote:
@@ -42,7 +44,8 @@ export const searchWeatherFeature: Feature = {
 };
 
 export const searchNearbyLocationFeature: Feature = {
-  id: "3_a",
+  id: "place.search.nearby",
+  legacyId: "3_a",
   title: "Provide searched location information",
   description: "Returns nearby place search results.",
   detectionNote:
@@ -65,7 +68,8 @@ export const searchNearbyLocationFeature: Feature = {
 };
 
 export const provideRecipeFeature: Feature = {
-  id: "4_b",
+  id: "recipe.suggest.from_ingredients",
+  legacyId: "4_b",
   title: "Provide a recipe from user-provided ingredients",
   description: "Suggests recipes when user asks with ingredient context.",
   detectionNote:

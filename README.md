@@ -8,7 +8,13 @@ Node.js/TypeScript 기반의 AI 에이전트 서버입니다.
 - Feature registry + prompt 조합
 - XML 응답 파싱
 - Fastify API (`POST /api/v1/intent/detect`)
-- 기본 feature 세트: `1_a`, `2_a`, `3_a`, `4_b`
+
+## Feature IDs
+
+- `mem.save` (legacy: `1_a`)
+- `weather.lookup` (legacy: `2_a`)
+- `place.search.nearby` (legacy: `3_a`)
+- `recipe.suggest.from_ingredients` (legacy: `4_b`)
 
 ## 실행
 

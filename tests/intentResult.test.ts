@@ -5,13 +5,13 @@ describe("parseIntentDetectResult", () => {
   it("parses feature and parameters", () => {
     const xml = `
 <reasoning>User explicitly asked for weather in Seoul.</reasoning>
-<feature>2_a</feature>
+<feature>weather.lookup</feature>
 <parameters>
   <city>Seoul</city>
 </parameters>`;
 
     const result = parseIntentDetectResult(xml);
-    expect(result.featureId).toBe("2_a");
+    expect(result.featureId).toBe("weather.lookup");
     expect(result.parameters).toEqual({ city: "Seoul" });
     expect(result.reasoning).toContain("weather");
   });
