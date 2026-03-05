@@ -1,4 +1,7 @@
 import { buildApp } from "./app.js";
+import { loadEnv } from "./loadEnv.js";
+
+loadEnv();
 
 const port = Number(process.env.PORT ?? 8889);
 const host = process.env.HOST ?? "0.0.0.0";

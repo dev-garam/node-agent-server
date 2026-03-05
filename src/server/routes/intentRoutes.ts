@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { buildErrorResponse } from "../errors.js";
+import { getProviderRateLimit } from "../providerError.js";
 import { parseIntentRequestBody } from "../parsers.js";
 import type { ServerServices } from "../services.js";
 
@@ -13,19 +14,28 @@ export const registerIntentRoutes = (app: FastifyInstance, services: ServerServi
         summary: "인텐트 감지 (호환용 폴백)",
         headers: {
           type: "object",
-          required: ["x-key-id", "x-timestamp", "x-nonce", "x-signature"],
+          description: "HMAC 활성화 시 헤더 4종이 필수입니다. (AGENT_HMAC_ENABLED=false면 생략 가능)",
           properties: {
-            "x-key-id": { type: "string" },
-            "x-timestamp": { type: "string" },
-            "x-nonce": { type: "string" },
-            "x-signature": { type: "string" }
+            "x-key-id": { type: "string", default: "dev-key-id" },
+            "x-timestamp": { type: "string", default: "1730000000" },
+            "x-nonce": { type: "string", default: "nonce-123" },
+            "x-signature": { type: "string", default: "put-hmac-signature-here" }
           }
         },
         body: {
           type: "object",
           required: ["state"],
+          examples: [
+            {
+              model: "google-genai:gemini-2.5-flash-lite",
+              state: {
+                messages: [{ role: "user", content: "오늘 내 감정 흐름 알려줘" }],
+                viewerTimezone: "Asia/Seoul"
+              }
+            }
+          ],
           properties: {
-            model: { type: "string", default: "openai:gpt-4o-mini" },
+            model: { type: "string", default: "google-genai:gemini-2.5-flash-lite" },
             state: {
               type: "object",
               required: ["messages"],
@@ -104,6 +114,14 @@ export const registerIntentRoutes = (app: FastifyInstance, services: ServerServi
               requestId: { type: "string" }
             }
           },
+          429: {
+            type: "object",
+            properties: {
+              code: { type: "string" },
+              message: { type: "string" },
+              requestId: { type: "string" }
+            }
+          },
           500: {
             type: "object",
             properties: {
@@ -117,10 +135,12 @@ export const registerIntentRoutes = (app: FastifyInstance, services: ServerServi
     },
     async (request, reply) => {
       const startAt = Date.now();
+      const parseStartAt = Date.now();
       const parsed = parseIntentRequestBody(request.body);
+      const parseMs = Date.now() - parseStartAt;
 
       if (!parsed.ok) {
-        request.log.warn({ error: parsed.error }, "intent.api.invalid_request");
+        request.log.warn({ parseMs, elapsedMs: Date.now() - startAt, error: parsed.error }, "intent.api.invalid_request");
         return reply.status(400).send(buildErrorResponse(request.id, "INVALID_REQUEST", "invalid request body"));
       }
 
@@ -136,17 +156,27 @@ export const registerIntentRoutes = (app: FastifyInstance, services: ServerServi
       );
 
       try {
+        const serviceLookupStartAt = Date.now();
         const detector = services.getDetector(parsed.data.model);
+        const serviceLookupMs = Date.now() - serviceLookupStartAt;
+        const detectStartAt = Date.now();
         const result = await detector.detect({
           state: parsed.data.state
         });
+        const detectMs = Date.now() - detectStartAt;
 
+        const matchFeatureStartAt = Date.now();
         const matchedFeature = services.registry.getById(result.parsed.featureId);
+        const matchFeatureMs = Date.now() - matchFeatureStartAt;
         const elapsedMs = Date.now() - startAt;
         request.log.info(
           {
             model: parsed.data.model,
             featureId: result.parsed.featureId,
+            parseMs,
+            serviceLookupMs,
+            detectMs,
+            matchFeatureMs,
             elapsedMs
           },
           "intent.api.response"
@@ -164,9 +194,24 @@ export const registerIntentRoutes = (app: FastifyInstance, services: ServerServi
         };
       } catch (error) {
         const elapsedMs = Date.now() - startAt;
+        const rateLimit = getProviderRateLimit(error);
+        if (rateLimit.isRateLimit) {
+          return reply
+            .status(429)
+            .send(
+              buildErrorResponse(
+                request.id,
+                "RATE_LIMITED",
+                rateLimit.retryAfterSec
+                  ? `provider rate limited, retry after ${rateLimit.retryAfterSec}s`
+                  : "provider rate limited"
+              )
+            );
+        }
         request.log.error(
           {
             model: parsed.data.model,
+            parseMs,
             elapsedMs,
             error
           },
