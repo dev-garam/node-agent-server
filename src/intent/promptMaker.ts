@@ -27,12 +27,18 @@ export class ConversationContextMaker {
   constructor(private readonly state: ChatState) {}
 
   getConversationContext(): string {
-    const currentDatetime = new Date().toISOString();
     const currentFeatureId = this.state.currentFeature?.id;
+    const currentDatetime = this.state.currentDateTime ?? new Date().toISOString();
+    const currentDate = this.state.currentDate;
+    const currentTime = this.state.currentTime;
+    const currentTimezone = this.state.currentTimezone ?? this.state.viewerTimezone;
 
     const header = [
       currentFeatureId ? `- **Current Feature ID**: ${currentFeatureId}` : "",
       `- **Current Datetime**: ${currentDatetime}`,
+      currentDate ? `- **Current Date**: ${currentDate}` : "",
+      currentTime ? `- **Current Time**: ${currentTime}` : "",
+      currentTimezone ? `- **Current Timezone**: ${currentTimezone}` : "",
       this.state.imageDescription ? `- **Image Description**: ${this.state.imageDescription}` : "",
       this.userMemorySection(),
       ""

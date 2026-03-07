@@ -12,6 +12,7 @@
   "dependencies": {
     "@fastify/swagger": "^9.5.2",
     "@fastify/swagger-ui": "^5.2.3",
+    "@langchain/google-genai": "^0.2.16",
     "@langchain/core": "^0.3.75",
     "@fastify/cors": "^11.1.0",
     "fast-xml-parser": "^5.2.5",
