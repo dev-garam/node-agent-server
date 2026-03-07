@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/server/index.ts",
-    "start": "node dist/server/index.js",
+    "start": "node dist/src/server/index.js",
     "test": "vitest run"
   },
   "dependencies": {

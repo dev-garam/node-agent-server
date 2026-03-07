@@ -12,6 +12,12 @@ interface ParsedSession {
   serviceId: string;
 }
 
+export interface ParsedRequestContext {
+  requestId?: string;
+  chatMessageId?: string;
+  sessionVersion?: number;
+}
+
 export interface ParsedIntentRequest {
   model: string;
   state: ChatState;
@@ -21,6 +27,7 @@ export interface ParsedChatReplyRequest {
   model: string;
   session: ParsedSession;
   state: ChatState;
+  context?: ParsedRequestContext;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -118,6 +125,26 @@ const parseStateFromBody = (body: unknown): { ok: true; state: ChatState } | { o
   return { ok: true, state };
 };
 
+const parseContext = (value: unknown): ParsedRequestContext | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const context: ParsedRequestContext = {};
+
+  if (typeof value.requestId === "string" && value.requestId.length > 0) {
+    context.requestId = value.requestId;
+  }
+  if (typeof value.chatMessageId === "string" && value.chatMessageId.length > 0) {
+    context.chatMessageId = value.chatMessageId;
+  }
+  if (typeof value.sessionVersion === "number" && Number.isFinite(value.sessionVersion)) {
+    context.sessionVersion = value.sessionVersion;
+  }
+
+  return Object.keys(context).length > 0 ? context : undefined;
+};
+
 const parseSession = (value: unknown): ParsedSession | undefined => {
   if (!isRecord(value)) {
     return undefined;
@@ -185,7 +212,8 @@ export const parseChatReplyRequestBody = (
     data: {
       model,
       session,
-      state: parsedState.state
+      state: parsedState.state,
+      context: parseContext(body.context)
     }
   };
 };

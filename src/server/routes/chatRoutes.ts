@@ -3,6 +3,12 @@ import { buildErrorResponse } from "../errors.js";
 import { parseChatReplyRequestBody } from "../parsers.js";
 import { applyRequestLocationFallback } from "../requestLocation.js";
 import type { ServerServices } from "../services.js";
+import {
+  buildMockReply,
+  buildMockReplyWithIntent,
+  buildMockStreamEvents,
+  resolveMockScenario
+} from "../../testing/mockAgentResponses.js";
 
 const DEFAULT_MODEL = "google-genai:gemini-2.5-flash-lite";
 
@@ -85,6 +91,14 @@ const chatRequestSchema = {
           }
         }
       }
+    },
+    context: {
+      type: "object",
+      properties: {
+        requestId: { type: "string" },
+        chatMessageId: { type: "string" },
+        sessionVersion: { type: "number" }
+      }
     }
   }
 } as const;
@@ -106,6 +120,11 @@ export const registerChatRoutes = (app: FastifyInstance, services: ServerService
         return reply.status(400).send(buildErrorResponse(request.id, "INVALID_REQUEST", "invalid request body"));
       }
       applyRequestLocationFallback(request, parsed.data.state);
+      const mockScenario = resolveMockScenario(request);
+
+      if (mockScenario) {
+        return buildMockReply(parsed.data.model, mockScenario);
+      }
 
       try {
         const output = await services.getPipeline(parsed.data.model).run({
@@ -141,6 +160,11 @@ export const registerChatRoutes = (app: FastifyInstance, services: ServerService
         return reply.status(400).send(buildErrorResponse(request.id, "INVALID_REQUEST", "invalid request body"));
       }
       applyRequestLocationFallback(request, parsed.data.state);
+      const mockScenario = resolveMockScenario(request);
+
+      if (mockScenario) {
+        return buildMockReplyWithIntent(parsed.data.model, mockScenario);
+      }
 
       try {
         const output = await services.getPipeline(parsed.data.model).run({
@@ -171,22 +195,66 @@ export const registerChatRoutes = (app: FastifyInstance, services: ServerService
         return reply.status(400).send(buildErrorResponse(request.id, "INVALID_REQUEST", "invalid request body"));
       }
       applyRequestLocationFallback(request, parsed.data.state);
+      const requestId = parsed.data.context?.requestId ?? request.id;
+      const mockScenario = resolveMockScenario(request);
+      let clientClosed = false;
+      const handleClose = () => {
+        clientClosed = true;
+      };
 
       reply.raw.writeHead(200, {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive"
       });
+      reply.raw.on("close", handleClose);
+      request.raw.on("close", handleClose);
+
+      if (mockScenario) {
+        try {
+          const events = buildMockStreamEvents(parsed.data.model, mockScenario, requestId);
+          for (const event of events) {
+            if (clientClosed) {
+              break;
+            }
+            if (event.type === "message.start") {
+              sendSseEvent(reply, event.type, {
+                requestId,
+                ...event.data
+              });
+              continue;
+            }
+            sendSseEvent(reply, event.type, event.data);
+          }
+        } finally {
+          reply.raw.off("close", handleClose);
+          request.raw.off("close", handleClose);
+          if (!reply.raw.writableEnded) {
+            reply.raw.end();
+          }
+        }
+        return reply;
+      }
 
       try {
         const stream = services.getPipeline(parsed.data.model).stream({
           model: parsed.data.model,
           state: parsed.data.state
         });
-        for await (const event of stream) {
+        const iterator = stream[Symbol.asyncIterator]();
+        while (!clientClosed) {
+          const next = await iterator.next();
+          if (next.done) {
+            break;
+          }
+          const event = next.value;
+          if (clientClosed) {
+            void iterator.return?.(null as never);
+            break;
+          }
           if (event.type === "message.start") {
             sendSseEvent(reply, event.type, {
-              requestId: request.id,
+              requestId,
               ...event.data
             });
             continue;
@@ -195,9 +263,19 @@ export const registerChatRoutes = (app: FastifyInstance, services: ServerService
         }
       } catch (error) {
         request.log.error({ error }, "chat.reply_with_intent.stream.failed");
-        sendSseEvent(reply, "error", { message: "stream processing failed" });
+        if (!clientClosed) {
+          sendSseEvent(reply, "error", {
+            code: "AGENT_UNAVAILABLE",
+            message: "stream processing failed",
+            requestId
+          });
+        }
       } finally {
-        reply.raw.end();
+        reply.raw.off("close", handleClose);
+        request.raw.off("close", handleClose);
+        if (!reply.raw.writableEnded) {
+          reply.raw.end();
+        }
       }
 
       return reply;
