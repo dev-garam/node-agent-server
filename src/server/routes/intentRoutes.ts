@@ -3,6 +3,7 @@ import { buildErrorResponse } from "../errors.js";
 import { parseIntentRequestBody } from "../parsers.js";
 import { applyRequestLocationFallback } from "../requestLocation.js";
 import type { ServerServices } from "../services.js";
+import { buildMockIntent, resolveMockScenario } from "../../testing/mockAgentResponses.js";
 
 const DEFAULT_MODEL = "google-genai:gemini-2.5-flash-lite";
 
@@ -83,6 +84,11 @@ export const registerIntentRoutes = (app: FastifyInstance, services: ServerServi
         return reply.status(400).send(buildErrorResponse(request.id, "INVALID_REQUEST", "invalid request body"));
       }
       applyRequestLocationFallback(request, parsed.data.state);
+      const mockScenario = resolveMockScenario(request);
+
+      if (mockScenario) {
+        return buildMockIntent(parsed.data.model, mockScenario);
+      }
 
       try {
         const intent = await services.getPipeline(parsed.data.model).detectIntent({

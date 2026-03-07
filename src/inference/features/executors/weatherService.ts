@@ -177,7 +177,6 @@ export const getWeatherData = async (input: WeatherLookupInput): Promise<Weather
     appid: apiKey
   });
 
-  console.log(`${OPENWEATHER_ONECALL_URL}?${params.toString()}`)
   const data = await fetchJson<Record<string, unknown>>(`${OPENWEATHER_ONECALL_URL}?${params.toString()}`);
   const current = (data.current ?? {}) as Record<string, unknown>;
   const weather = Array.isArray(current.weather) ? current.weather[0] : {};
