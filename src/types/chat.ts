@@ -15,6 +15,15 @@ export interface InStateChatMessage {
 export interface ChatState {
   messages: InStateChatMessage[];
   viewerTimezone?: string;
+  viewerAddress?: string;
+  viewerCountry?: string;
+  viewerCity?: string;
+  viewerLat?: number;
+  viewerLon?: number;
+  currentDateTime?: string;
+  currentDate?: string;
+  currentTime?: string;
+  currentTimezone?: string;
   imageDescription?: string;
   userMemory?: UserMemory[];
   currentFeature?: { id: string };

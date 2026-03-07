@@ -85,6 +85,21 @@ const parseStateFromBody = (body: unknown): { ok: true; state: ChatState } | { o
   if (typeof body.state.viewerTimezone === "string") {
     state.viewerTimezone = body.state.viewerTimezone;
   }
+  if (typeof body.state.viewerAddress === "string") {
+    state.viewerAddress = body.state.viewerAddress;
+  }
+  if (typeof body.state.viewerCountry === "string") {
+    state.viewerCountry = body.state.viewerCountry;
+  }
+  if (typeof body.state.viewerCity === "string") {
+    state.viewerCity = body.state.viewerCity;
+  }
+  if (typeof body.state.viewerLat === "number" && Number.isFinite(body.state.viewerLat)) {
+    state.viewerLat = body.state.viewerLat;
+  }
+  if (typeof body.state.viewerLon === "number" && Number.isFinite(body.state.viewerLon)) {
+    state.viewerLon = body.state.viewerLon;
+  }
   if (typeof body.state.imageDescription === "string") {
     state.imageDescription = body.state.imageDescription;
   }
