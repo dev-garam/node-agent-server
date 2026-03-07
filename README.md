@@ -8,9 +8,9 @@ Node.js/TypeScript 기반의 내부 AI 에이전트 서버입니다.
 - `GET /health`
 - `GET /api/v1/ping`
 - `POST /api/v1/chat/reply`
-- `POST /api/v1/chat/reply-with-intent/stream` (SSE: 답변 토큰 스트림 + 인텐트 결과)
-- `POST /api/v1/chat/reply-with-intent` (답변 우선 반환 + 인텐트 병렬 처리)
-- `POST /api/v1/intent/detect` (호환용 폴백)
+- `POST /api/v1/chat/reply-with-intent`
+- `POST /api/v1/chat/reply-with-intent/stream`
+- `POST /api/v1/intent/detect`
 - Swagger UI: `http://localhost:8889/docs`
 
 ## 실행
@@ -70,11 +70,44 @@ curl -X POST http://localhost:8889/api/v1/chat/reply \
 ## 응답 동작
 
 - `/api/v1/ping`: `{ "status": "ok" }`
-- `/api/v1/chat/reply`: `answer` 필수, `modelName`, `finishReason`, `usage` optional
-- `/api/v1/chat/reply-with-intent/stream`: SSE 이벤트(`message.start`, `message.delta`, `message.end`, `intent.result`, `done`)
-- `/api/v1/chat/reply-with-intent`: `answer`를 우선 반환하고, 같은 응답에서 `intent`는 완료 시 포함되며 미완료면 `intent: null`, `intentStatus: "pending"` 반환
-- `/api/v1/intent/detect`: 기존 인텐트 감지 응답 유지
+- `/api/v1/chat/reply`: 내부적으로 추론 파이프라인을 실행한 뒤 `answer`, `modelName`, `finishReason`, `usage`만 반환
+- `/api/v1/chat/reply-with-intent`: 같은 추론 파이프라인 결과에 `intent`, `intentStatus`, `path`, `timings`를 함께 반환
+- `/api/v1/chat/reply-with-intent/stream`: SSE 이벤트(`message.start`, `message.delta`, `message.end`, `intent.result`, `done`) 반환
+- `/api/v1/intent/detect`: 답변 생성 없이 인텐트 감지만 수행
 - Gemini 쿼터 초과 시(`429`)는 `RATE_LIMITED` 오류와 함께 즉시 반환됩니다.
+
+## 추론 파이프라인
+
+모든 채팅 API는 같은 추론 파이프라인을 사용합니다.
+
+1. 요청 파싱 및 위치/IP fallback 적용
+2. agent context 초기화
+3. history / user memory 로드
+4. intent detect
+5. feature 분기
+6. feature executor가 직접 처리 가능하면 그 결과를 최종 응답으로 사용
+7. feature 미분류 또는 feature 실행 실패 시에만 answer LLM 호출
+
+현재 `chat/reply`와 `chat/reply-with-intent`의 내부 로직은 같고, 응답 계약만 다릅니다.
+
+- `chat/reply`: 답변 필드만 노출
+- `reply-with-intent`: intent와 path/timings까지 노출
+- `reply-with-intent/stream`: 같은 파이프라인의 SSE 버전
+
+`path` 값 의미:
+
+- `answer_llm`: feature 미분류로 일반 답변 LLM 사용
+- `feature_success`: feature executor가 직접 처리 성공
+- `feature_failed`: feature로 분기했지만 실행 실패 후 일반 답변 경로로 복귀
+
+현재 기본 feature 예시는 날씨 조회, 메모 저장, 주변 장소 검색, 재료 기반 레시피 추천입니다.
+
+## 시간대 처리
+
+- 요청의 `state.viewerTimezone`을 받으면 서버가 그 시간대로 현재 날짜/시간을 계산합니다.
+- 계산된 `currentDateTime`, `currentDate`, `currentTime`, `currentTimezone`는 추론 state에 주입됩니다.
+- intent 분석과 일반 답변 생성 모두 이 값을 기준으로 `today`, `tomorrow`, `now` 같은 상대 시각을 해석합니다.
+- 유효하지 않은 timezone이 오면 서버 기본 timezone으로 fallback합니다.
 
 ## 성능 최적화
 
@@ -103,8 +136,9 @@ curl -X POST http://localhost:8889/api/v1/chat/reply \
 - `AGENT_HMAC_NONCE_TTL_SEC` (기본: `90`)
 - `CORS_ENABLED` (기본: `false`, 서버-서버 통신이면 보통 비활성화)
 - `CORS_ORIGIN` (예: `https://admin.example.com,https://stg-admin.example.com`)
-- `INTENT_DETECT_DEFAULT_MODEL` (기본: `google-genai:gemini-2.5-flash-lite`)
+- `DEFAULT_MODEL` (기본: `google-genai:gemini-2.5-flash-lite`, 레거시 `INTENT_DETECT_DEFAULT_MODEL`도 fallback으로 지원)
 - `INTENT_DETECT_ALLOW_FALLBACK` (기본: `false`, `true`면 감지 실패 시 featureId=`0` 폴백)
 - `INTENT_DETECT_TIMEOUT_MS` (기본: `4500`)
 - `CHAT_RESPOND_TIMEOUT_MS` (기본: `8000`)
+- `OPENWEATHERMAP_API_KEY` (날씨 feature 사용 시 필요)
 - `LOG_LEVEL` (개발 기본: `debug`, 운영 기본: `info`)

@@ -1,6 +1,9 @@
 import type { ChatState, InStateChatMessage, UserMemory } from "../types/chat.js";
 
-const DEFAULT_MODEL = process.env.INTENT_DETECT_DEFAULT_MODEL ?? "google-genai:gemini-2.5-flash-lite";
+const DEFAULT_MODEL =
+  process.env.DEFAULT_MODEL ??
+  process.env.INTENT_DETECT_DEFAULT_MODEL ??
+  "google-genai:gemini-2.5-flash-lite";
 
 interface ParsedSession {
   id: string;
